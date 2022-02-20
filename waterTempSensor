@@ -1,5 +1,6 @@
 #include <Process.h>
 #include "Stopwatch.h"
+#include "master_SPI"
 
 int sensePin = A0; // arduino pin that will read the sensor output
 int sensorInput; // stores the sensor input
@@ -8,30 +9,36 @@ double temp;
 boolean first = false;
 int duration = 0;
 Process p;
-
+Timer t = Timer();
+double volume = 0;
 void setup() {
     Serial.begin(9600); // start the serial port at 9600 baud (default)
     namespace sw = stopwatch;
 }
 
-void loop() {
-    sensorInput = analogRead(A0); // read the analog sensor and store it
-    temp = (double)sensorInput / 1024; // find percentage of input reading
-    temp = temp * 5; //multiply by 5V to get voltage
-    temp = temp - 0.5; // subtract the offset
-    temp = temp * 100; // convert to degrees
-    if (first == false && temp - previousTemp >= 14.0) { // temp increase of around 14 degrees means the patient started urinating
-        first = true;
-        sw::Stopwatch my_watch;
-    }
-    if (first == true && previousTemp - temp >= 1.0) { // means the temperature is no longer rising, so the patient is done urinating
-        first = false;
-        auto duration = my_watch.elapsed();
-        p.runShellCommand("python application.py duration");
-    }
-    previousTemp = temp;
+t.setTimeout([&]() {
+    void loopSensor() {
+        sensorInput = analogRead(A0); // read the analog sensor and store it
+        temp = (double)sensorInput / 1024; // find percentage of input reading
+        temp = temp * 5; //multiply by 5V to get voltage
+        temp = temp - 0.5; // subtract the offset
+        temp = temp * 100; // convert to degrees
+        if (first == false && temp - previousTemp >= 14.0) { // temp increase of around 14 degrees means the patient started urinating
+            first = true;
+            sw::Stopwatch my_watch;
+        }
+        if (first == true && previousTemp - temp >= 1.0) { // means the temperature is no longer rising, so the patient is done urinating
+            first = false;
+            auto duration = my_watch.elapsed();
+            volume += (duration / 1000) * 15;
+            p.runShellCommand("python application.py duration");
+        }
+        previousTemp = temp;
 
-    // kept for demo purposes
-    Serial.print("Current Temperature: ");
-    Serial.println(temp);
-}
+        // kept for demo purposes
+        Serial.print("Current Temperature: ");
+        Serial.println(temp);
+    }
+    if (volume <= 175) {
+        loop();
+}, 21600000);
