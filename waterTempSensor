@@ -26,8 +26,8 @@ void loop() {
     }
     if (first == true && previousTemp - temp >= 1.0) { // means the temperature is no longer rising, so the patient is done urinating
         first = false;
-        auto duration_ms = my_watch.elapsed();
-        p.runShellCommand("python application.py duration_ms");
+        auto duration = my_watch.elapsed();
+        p.runShellCommand("python application.py duration");
     }
     previousTemp = temp;
 
